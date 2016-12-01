@@ -34,6 +34,7 @@ void ReadFile :: openFile(char *file_name)
   fstream inputfile(file_name,ios::in);
   streampos size;
   char * memblock;
+  char STRING;
   
   if (inputfile.is_open()) // from http://www.cplusplus.com/doc/tutorial/files/
   {
@@ -44,7 +45,14 @@ void ReadFile :: openFile(char *file_name)
     inputfile.close();
 
     cout << "the entire file content is in memory\n";
-
+    //parsing the file contents
+    while(!inputfile.eof)
+      {
+	getline(inputfile,STRING); //save the lines in a string
+	cout << STRING;
+      }
+    
+    
     delete[] memblock;
   }
   else cout << "Unable to open file\n";
