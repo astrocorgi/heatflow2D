@@ -23,18 +23,19 @@ void HeatFlow :: createRectangle(int dx, int dy) //can I pass a class here inste
 
  class ReadFile
  {
-   fstream inputfile;
    void openFile(char);
-
  }ReadFile;
 
 void ReadFile :: openFile(char file_name) 
 {
-
+  fstream inputfile;
 }
 
 int main()
 {
+  ReadFile readfile;
+  
+  
   HeatFlow heatflow;
   heatflow.createRectangle(
   
