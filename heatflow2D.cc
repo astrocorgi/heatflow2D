@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <cmath>
 
 using namespace std;
@@ -10,7 +11,7 @@ public:
   int width, height;
   void createRectangle(int,int);
 
-} HeatFlow;
+};
 
 // creating the rectangle for heat flow, part of heatflow class
 void HeatFlow :: createRectangle(int dx, int dy) //can I pass a class here instead of dx, dy?
@@ -21,22 +22,41 @@ void HeatFlow :: createRectangle(int dx, int dy) //can I pass a class here inste
   double rectangle[width][height];
 };
 
+//reading input file
  class ReadFile
  {
-   fstream inputfile;
-   void openFile(char);
+ public:
+   void openFile(char*);
+ };
 
- }ReadFile;
-
-void ReadFile :: openFile(char file_name) 
+void ReadFile :: openFile(char *file_name) 
 {
+  fstream inputfile(file_name,ios::in);
+  streampos size;
+  char * memblock;
+  
+  if (inputfile.is_open()) // from http://www.cplusplus.com/doc/tutorial/files/
+  {
+    size = inputfile.tellg();
+    memblock = new char [size];
+    inputfile.seekg (0, ios::beg);
+    inputfile.read (memblock, size);
+    inputfile.close();
 
+    cout << "the entire file content is in memory\n";
+
+    delete[] memblock;
+  }
+  else cout << "Unable to open file\n";
 }
 
-int main()
+int main(int argc, char *argv[]) // argv[0] = program name, argv[1] = input, argv[2] = output frequency, argv[3] = output filename
 {
+  ReadFile readfile;
+  readfile.openFile(argv[1]);
+  
   HeatFlow heatflow;
-  heatflow.createRectangle(
+  heatflow.createRectangle(1,1);
   
   return 0;
 }
