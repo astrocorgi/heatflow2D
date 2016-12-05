@@ -79,25 +79,29 @@ contains
 
 
   subroutine readHolds(holds,num_holds)
-    !Right now it's a character matrix and I don't like that :( 
-    integer :: i,j,num_holds
+    !Right now it's a character matrix and I don't like that :(
+    implicit none
+    integer :: i,j,num_holds, chartest
     character(len=16), dimension(num_holds,4) :: holds
 
-    
+    !This loop goes through every element in the input matrix "holds". It looks for *'s, turns them to -999. It converts all characters to integers and adds +1 to the xpos and ypos (since they are in C notation)
     do j = 1,4
        do i = 1,num_holds
           !check if this is a *
-          if holds(j,i) == '*' then
-          !change to -999
-          holds(i,j) = '-999'
+          if (holds(i,j) == '*') then
+          !change to -999 then convert char to int
+             holds(i,j) = '-999'
+             holds(i,j) = ichar(holds(i,j))
+          else
+             !change the character to integer
+             holds(i,j) = ichar(holds(i,j))
+             !add +1 to all xposition and yposition values that aren't *'s
+             if (j == 1 .OR. j == 2) then
+                holds(i,j) = holds(i,j) + 1
+             endif
           endif
        enddo
     enddo
-
-    !change the character matrix to integer
-
-    !add +1 to all xpos ypos values (they are in C notation)
-
     
   end subroutine readHolds
 
