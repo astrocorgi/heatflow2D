@@ -30,7 +30,7 @@ contains
     
     print *, 'opening file...'    
     open (1,file=input, status='old',action='read')
-    read(1,*) size_x, size_y, alpha, num_timesteps
+    read(1,*) size_x, size_y, alpha, num_timesteps !reads first line of input file
     
     !convert sizes considering Fortran indexing 
     size_x = size_x + 1
@@ -45,30 +45,29 @@ contains
     ncol = 4
     nrow = size_y 
     k=1
-    allocate(holds(nrow,ncol)) ! clumsy
+    allocate(holds(ncol,nrow)) ! (COL,ROW)
 
     !Reading unknown length matrix, from ISP slides
     do
-       read(1,*,IOSTAT=ios) holds(k,:)
+       read(1,*,IOSTAT=ios) holds(:,k)
        if (is_iostat_end(ios)) then
           write (*,'(a,i2)') &
-               'End of file reached: row= ', k-1 !-1 because first line is read above
+               'End of file reached: row = ', k-1 !-1 because first line is read above
           exit
        else if (ios /= 0) then
           write (*,'(a,i2)') !&
                !'Problems reading line', k-1
           exit
        endif
-       write(*,*) holds(k,:)
+       write(*,*) holds(:,k) ! (COL,ROW)
        k = k+1
     enddo
 
     num_holds = k-1
     !print *, holds
-    print *, holds(1,1)
-    print *, holds(1,2)
-    print *, holds(2,1)
-    !holds = holds(1:num_holds,:) !I hope this write over holds to make it short
+    !print *, '(1,1):', holds(1,1)
+    !print *, '(1,2):',holds(1,2)
+    !print *, '(2,1):',holds(2,1)
     
     close (1)
     !size_x size_y alpha num_timesteps
@@ -84,15 +83,14 @@ contains
     implicit none
     integer :: i,j,num_holds, chartest,stat
     real, dimension(:,:), allocatable :: holds_real
-    character(len=16), dimension(4,num_holds) :: holds
+    character(len=16), dimension(4,num_holds) :: holds !(COL,ROW)
 
     allocate(holds_real(4,num_holds))
     
     !This loop goes through every element in the input matrix "holds". It looks for *'s, turns them to -999. It converts all characters to integers and adds +1 to the xpos and ypos (since they are in C notation)
-    print *, num_holds
-    do i = 1,4
-       do j = 1,num_holds
-          print *, holds(i,j)
+    do i = 1,4 !for each column
+       do j = 1,num_holds !for each row
+          !print *, holds(i,j)
           !check if this is a *
           if (holds(i,j) == '*') then
           !change to -999 
@@ -100,17 +98,19 @@ contains
              holds_real(i,j) = -999
           else
              !change the character to real
-             read(holds(i,j),*,iostat=stat) holds_real
+             read(holds(i,j),*,iostat=stat) holds_real(i,j)
              
              !add +1 to all xposition and yposition values that aren't *'s
-             if (j == 1 .OR. j == 2) then
+             if (i == 1 .OR. i == 2) then
                 holds_real(i,j) = holds_real(i,j) + 1
              endif
              
           endif
        enddo
-       !write(*,*) holds_real(i,:)
     enddo
+
+    print *, 'The matrix of reals:'
+    write(*,'(4f10.2)') holds_real
     
   end subroutine readHolds
 
@@ -120,11 +120,11 @@ contains
     character(len=64) :: output, freq
     integer :: size_x, size_y, num_timesteps, num_holds, y, x, k, t, hold_check
     integer :: interior, top, bottom, ls, rs, tl, tr, bl, br, corner
-    real, dimension(num_holds,4) :: holds_real
+    real, dimension(4,num_holds) :: holds_real
     real :: alpha
     real, dimension(:,:,:), allocatable :: heatmat
 
-    allocate(heatmat(size_y,size_x,num_timesteps)) !change to mod(num_timesteps,output) later
+    allocate(heatmat(size_x,size_y,num_timesteps)) !change z to mod(num_timesteps,output) later
     hold_check = 0
     interior = 0
     top = 0
