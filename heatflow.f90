@@ -118,12 +118,16 @@ contains
   subroutine heatPropagation(output,freq,size_x,size_y,alpha,num_timesteps,holds_real,num_holds,heatmat)
     !here we apply the heat equation to each element in the given rectangle
     character(len=64) :: output, freq
-    integer :: size_x, size_y, num_timesteps, num_holds, y, x, k, t, hold_check
+    integer :: size_x, size_y, num_timesteps, num_holds, y, x, k, t, hold_check, out_freq, stat
     integer :: interior, top, bottom, ls, rs, tl, tr, bl, br, corner
     real, dimension(4,num_holds) :: holds_real
     real :: alpha
     real, dimension(:,:,:), allocatable :: heatmat, heatmat_stencil
 
+    print *, 'output is',output
+    read(freq,*,iostat=stat) out_freq
+
+    
     allocate(heatmat(size_x,size_y,num_timesteps)) !change z to mod(num_timesteps,output) later
     allocate(heatmat_stencil(size_x,size_y,num_timesteps))
     hold_check = 0
@@ -284,8 +288,9 @@ contains
           br = 0
           corner = 0
        enddo ! for each row
-       if (mod(t,output)==0) then
-          write(*,'(100f10.2)') heatmat
+       if (mod(t,out_freq)==0) then
+          print *, 'Time step is', t
+          write(*,'(15f10.2)') heatmat
        endif
     enddo ! for each time step
     
