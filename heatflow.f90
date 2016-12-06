@@ -117,8 +117,8 @@ contains
   
   subroutine heatPropagation(output,freq,size_x,size_y,alpha,num_timesteps,holds_real,num_holds,heatmat)
     !here we apply the heat equation to each element in the given rectangle
-    character(len=64) :: output, freq
-    integer :: size_x, size_y, num_timesteps, num_holds, y, x, k, t, hold_check, out_freq, stat
+    character(len=64) :: output, freq, format
+    integer :: size_x, size_y, num_timesteps, num_holds, y, x, k, t, hold_check, out_freq, stat, i, j
     integer :: interior, top, bottom, ls, rs, tl, tr, bl, br, corner
     real, dimension(4,num_holds) :: holds_real
     real :: alpha
@@ -126,7 +126,7 @@ contains
 
     print *, 'output is ',output
     read(freq,*,iostat=stat) out_freq
-
+    write(format,*) size_x
     
     allocate(heatmat(size_x,size_y,num_timesteps)) !change z to mod(num_timesteps,output) later
     allocate(heatmat_stencil(size_x,size_y,num_timesteps))
@@ -136,6 +136,8 @@ contains
     bottom = 0
     ls = 0
     rs = 0
+
+    open (unit = 2, file=output, action="write",STATUS="replace")
 
     ! Initializing heatmat
     do k=1,num_holds
@@ -148,8 +150,8 @@ contains
     
     
     do t=2,num_timesteps
-       do y = 1,size_y ! for each row
-          do x=1,size_x ! for each column
+       do x = 1,size_x ! for each row
+          do y=1,size_y ! for each column
              ! check if this position is a hold
              do k=1,num_holds !n_rows
                 if ((x==holds_real(2,k)) .AND. (y==holds_real(1,k)) .AND. (holds_real(4,k)==1)) then
@@ -267,8 +269,7 @@ contains
                    heatmat_stencil(x,y,t) = heatmat(x,y,t-1) + alpha*(heatmat(x-1,y-1,t-1)&
                         +heatmat(x,y-1,t-1)+ heatmat(x+1,y-1,t-1) &
                         +heatmat(x-1,y,t-1)+ heatmat(x+1,y,t-1)   &
-                        +heatmat(x-1,y+1,t-1)+ heatmat(x,y+1,t-1) &
-                        +heatmat(x+1,y+1,t-1)-8*heatmat(x,y,t-1))
+                        -8*heatmat(x,y,t-1))
                    heatmat(x,y,t) = heatmat_stencil(x,y,t)
                 elseif (top==1) then
                    !same equation with y-1 removed
@@ -279,25 +280,29 @@ contains
                    heatmat(x,y,t) = heatmat_stencil(x,y,t)
                 endif !interior == 1
              endif
+             hold_check = 0 !reset to zero after every element
+             interior = 0
+             top = 0
+             bottom = 0
+             ls = 0
+             rs = 0
+             tl = 0
+             tr = 0
+             bl = 0
+             br = 0
+             corner = 0
           enddo ! for each column
-          hold_check = 0 !reset to zero after every element
-          interior = 0
-          top = 0
-          bottom = 0
-          ls = 0
-          rs = 0
-          tl = 0
-          tr = 0
-          bl = 0
-          br = 0
-          corner = 0
+
        enddo ! for each row
        if (t==2 .OR. (mod(t,out_freq)==0)) then
           print *, 'Time step is', t
-          write(*,'(5f10.2)') heatmat(:,:,t)
+          write(*,'(15f10.2)') heatmat(:,:,t)
+          write(2,FMT=rowfmt) (a(i,j), j=1,numcols)
+
        endif
     enddo ! for each time step
-    
+    DO i=1,numrows
+     END DO
   end subroutine heatPropagation
 
   
