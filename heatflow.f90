@@ -122,9 +122,10 @@ contains
     integer :: interior, top, bottom, ls, rs, tl, tr, bl, br, corner
     real, dimension(4,num_holds) :: holds_real
     real :: alpha
-    real, dimension(:,:,:), allocatable :: heatmat
+    real, dimension(:,:,:), allocatable :: heatmat, heatmat_stencil
 
     allocate(heatmat(size_x,size_y,num_timesteps)) !change z to mod(num_timesteps,output) later
+    allocate(heatmat_stencil(size_x,size_y,num_timesteps))
     hold_check = 0
     interior = 0
     top = 0
@@ -132,22 +133,30 @@ contains
     ls = 0
     rs = 0
 
-    !STILL NEED TO INCLUDE *  * WILDCARD HANDLING
+    ! Initializing heatmat
+    do k=1,num_holds
+       if ((holds_real(1,k)==-999) .AND. (holds_real(2,k)==-999)) then
+          !initialization row
+          heatmat(:,:,1) = holds_real(3,k)
+       endif
+    enddo
     
-    do t=1,num_timesteps
+    do t=2,num_timesteps
        do y = 1,size_y ! for each row
           do x=1,size_x ! for each column
              ! check if this position is a hold
-             do k=1,num_holds
-                if ((x==holds_real(k,1)) .AND. (y==holds_real(k,2)) .AND. (holds_real(k,4)==1)) then
-                   heatmat(y,x,t) = holds_real(k,3)
+             do k=1,num_holds !n_rows
+                if ((x==holds_real(1,k)) .AND. (y==holds_real(2,k)) .AND. (holds_real(4,k)==1)) then
+                   heatmat(x,y,t) = holds_real(3,k)
                    hold_check = 1
-                elseif ((y == holds_real(k,2)) .AND. (holds_real(k,1) == -999)) then
+                elseif ((y == holds_real(2,k)) .AND. (holds_real(1,k) == -999)) then
                    !it's in a hold column, set to hold value
-                   heatmat(y,x,t) = holds_real(k,3)
-                elseif ((x == holds_real(k,1)) .AND. (holds_real(k,2) == -999) .AND. (holds_real(k,4)==1)) then
+                   heatmat(x,y,t) = holds_real(3,k)
+                   hold_check = 1
+                elseif ((x == holds_real(1,k)) .AND. (holds_real(2,k) == -999) .AND. (holds_real(4,k)==1)) then
                    !it's in a hold row, set to hold value
-                   heatmat(y,x,t) = holds_real(k,3)
+                   heatmat(x,y,t) = holds_real(k,3)
+                   hold_check = 1
                 endif
              enddo ! for each hold
              
@@ -181,68 +190,87 @@ contains
                    interior = 1
                 endif !determining location flag
              endif !hold check
-
+             
              ! now apply the correct heat solution to the element
              ! CORNER ELEMENTS
              if (corner==1) then
                 if (tl==1) then
                    !function without x-1, y-1
-                   !heatmat(y,x,t) =  u(x,y,t-1)  &
-                    !       + u(x+1,y,t-1)+ u(x,y+1,t-1)    &
-                     !      +u(x+1,y+1,t-1)-8*u(x,y,t-1))
+                   heatmat_stencil(x,y,t) =  heatmat(x,y,t-1)+alpha*(heatmat(x+1,y,t-1)&
+                        + heatmat(x,y+1,t-1) &
+                        +heatmat(x+1,y+1,t-1)-8*heatmat(x,y,t-1))
+                   heatmat(x,y,t) = heatmat_stencil(x,y,t)
                 elseif (tr==1) then
                    !function without x+1, y-1
-                   
-                   !heatmat(y,x,t) = u(x,y,t-1)  &
-                    !    +u(x-1,y,t-1)+u(x-1,y+1,t-1)+ u(x,y+1,t-1)    &
-                     !   -8*u(x,y,t-1))
+                   heatmat_stencil(x,y,t) = heatmat(x,y,t-1)             &
+                        +alpha*(heatmat(x-1,y,t-1)+heatmat(x-1,y+1,t-1)  &
+                        + heatmat(x,y+1,t-1)                             &
+                        -8*heatmat(x,y,t-1))
+                   heatmat(x,y,t) = heatmat_stencil(x,y,t)
+                                      
                 elseif  (bl==1) then
                    !function without x-1, y+1
                    
-                   !heatmat(y,x,t) = u(x,y,t-1) + a*(u(x,y-1,t-1)+ u(x+1,y-1,t-1) &
-                    !    + u(x+1,y,t-1)   &
-                     !   -8*u(x,y,t-1))
+                   heatmat_stencil(x,y,t) = heatmat(x,y,t-1) + alpha*(heatmat(x,y-1,t-1)&
+                        + heatmat(x+1,y-1,t-1) &
+                        + heatmat(x+1,y,t-1)   &
+                        -8*heatmat(x,y,t-1))
+                   heatmat(x,y,t) = heatmat_stencil(x,y,t)
+
                 elseif (br==1) then
                    !function without y+1, x+1
-                   !heatmat(y,x,t) = u(x,y,t-1) + a*(u(x-1,y-1,t-1)+u(x,y-1,t-1) &
-                    !    +u(x-1,y,t-1)    &
-                     !   -8*u(x,y,t-1))
+                   heatmat_stencil(x,y,t) = heatmat(x,y,t-1) + alpha*(heatmat(x-1,y-1,t-1)&
+                        +heatmat(x,y-1,t-1)   &
+                        +heatmat(x-1,y,t-1)   &
+                        -8*heatmat(x,y,t-1))
+                   heatmat(x,y,t) = heatmat_stencil(x,y,t)
+
                 endif
              else !(corner /= 1), its an edge or interior
 
-                   if (interior==1) then
+                if (interior==1) then
                 
-                      !heatmat(y,x,t) = u(x,y,t-1) + a*(u(x-1,y-1,t-1)+u(x,y-1,t-1)+ u(x+1,y-1,t-1) &
-                       !    +u(x-1,y,t-1)+ u(x+1,y,t-1)+u(x-1,y+1,t-1)+ u(x,y+1,t-1)    &
-                        !   +u(x+1,y+1,t-1)-8*u(x,y,t-1))
-                
-                   elseif (ls==1) then
-                      !same equation with x-1 terms removed
-                      
-                      !heatmat(y,x,t) = u(x,y,t-1) + a*(u(x,y-1,t-1)+ u(x+1,y-1,t-1) &
-                       !    + u(x+1,y,t-1)+u(x,y+1,t-1)    &
-                        !   +u(x+1,y+1,t-1)-8*u(x,y,t-1))
-                
-                   elseif (rs==1) then
-                      !same equation with x+1 terms removed
-                      !heatmat(y,x,t) = u(x,y,t-1) + a*(u(x-1,y-1,t-1)+u(x,y-1,t-1) &
-                       !    +u(x-1,y,t-1)+u(x-1,y+1,t-1)+ u(x,y+1,t-1)    &
-                        !   -8*u(x,y,t-1))
-
-                   elseif (bottom==1) then
-                      !same equation with y+1 removed
+                   heatmat_stencil(x,y,t) = heatmat(x,y,t-1) + alpha*(heatmat(x-1,y-1,t-1) &
+                        +heatmat(x,y-1,t-1)+ heatmat(x+1,y-1,t-1) &
+                        +heatmat(x-1,y,t-1)+ heatmat(x+1,y,t-1)   &
+                        +heatmat(x-1,y+1,t-1)+ heatmat(x,y+1,t-1) &
+                        +heatmat(x+1,y+1,t-1)-8*heatmat(x,y,t-1))
+                   heatmat(x,y,t) = heatmat_stencil(x,y,t)
+                elseif (ls==1) then
+                   !same equation with x-1 terms removed
                    
-                      !heatmat(y,x,t) = u(x,y,t-1) + a*(u(x-1,y-1,t-1)+u(x,y-1,t-1)+ u(x+1,y-1,t-1) &
-                       !    +u(x-1,y,t-1)+ u(x+1,y,t-1)+u(x-1,y+1,t-1)+ u(x,y+1,t-1)    &
-                        !   +u(x+1,y+1,t-1)-8*u(x,y,t-1))
-
-                   elseif (top==1) then
-                      !same equation with y-1 removed
-                      !heatmat(y,x,t) = u(x,y,t-1)  &
-                       !    +u(x-1,y,t-1)+ u(x+1,y,t-1)+u(x-1,y+1,t-1)+ u(x,y+1,t-1)    &
-                        !   +u(x+1,y+1,t-1)-8*u(x,y,t-1))
-                   endif !interior == 1
-                endif
+                   heatmat_stencil(x,y,t) = heatmat(x,y,t-1) + alpha*(heatmat(x,y-1,t-1)&
+                        + heatmat(x+1,y-1,t-1)                     &
+                        + heatmat(x+1,y,t-1)+heatmat(x,y+1,t-1)    &
+                        +heatmat(x+1,y+1,t-1)-8*heatmat(x,y,t-1))
+                   heatmat(x,y,t) = heatmat_stencil(x,y,t)
+                elseif (rs==1) then
+                   !same equation with x+1 terms removed
+                   heatmat_stencil(x,y,t) = heatmat(x,y,t-1) + alpha*(heatmat(x-1,y-1,t-1)&
+                        +heatmat(x,y-1,t-1)   &
+                        +heatmat(x-1,y,t-1)   &
+                        +heatmat(x-1,y+1,t-1) &
+                        + heatmat(x,y+1,t-1)  &
+                        -8*heatmat(x,y,t-1))
+                   heatmat(x,y,t) = heatmat_stencil(x,y,t)
+                elseif (bottom==1) then
+                   !same equation with y+1 removed
+                   
+                   heatmat_stencil(x,y,t) = heatmat(x,y,t-1) + alpha*(heatmat(x-1,y-1,t-1)&
+                        +heatmat(x,y-1,t-1)+ heatmat(x+1,y-1,t-1) &
+                        +heatmat(x-1,y,t-1)+ heatmat(x+1,y,t-1)   &
+                        +heatmat(x-1,y+1,t-1)+ heatmat(x,y+1,t-1) &
+                        +heatmat(x+1,y+1,t-1)-8*heatmat(x,y,t-1))
+                   heatmat(x,y,t) = heatmat_stencil(x,y,t)
+                elseif (top==1) then
+                   !same equation with y-1 removed
+                   heatmat_stencil(x,y,t) = heatmat(x,y,t-1)  &
+                        +alpha*(heatmat(x-1,y,t-1)+ heatmat(x+1,y,t-1)    & 
+                        +heatmat(x-1,y+1,t-1)+ heatmat(x,y+1,t-1)  &
+                        +heatmat(x+1,y+1,t-1)-8*heatmat(x,y,t-1))
+                   heatmat(x,y,t) = heatmat_stencil(x,y,t)
+                endif !interior == 1
+             endif
           enddo ! for each column
           hold_check = 0 !reset to zero after every element
           interior = 0
@@ -256,6 +284,9 @@ contains
           br = 0
           corner = 0
        enddo ! for each row
+       if (mod(t,output)==0) then
+          write(*,'(100f10.2)') heatmat
+       endif
     enddo ! for each time step
     
   end subroutine heatPropagation
