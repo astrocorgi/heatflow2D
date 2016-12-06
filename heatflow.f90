@@ -124,7 +124,7 @@ contains
     real :: alpha
     real, dimension(:,:,:), allocatable :: heatmat, heatmat_stencil
 
-    print *, 'output is',output
+    print *, 'output is ',output
     read(freq,*,iostat=stat) out_freq
 
     
@@ -144,25 +144,29 @@ contains
           heatmat(:,:,1) = holds_real(3,k)
        endif
     enddo
+
+    
     
     do t=2,num_timesteps
        do y = 1,size_y ! for each row
           do x=1,size_x ! for each column
              ! check if this position is a hold
              do k=1,num_holds !n_rows
-                if ((x==holds_real(1,k)) .AND. (y==holds_real(2,k)) .AND. (holds_real(4,k)==1)) then
+                if ((x==holds_real(2,k)) .AND. (y==holds_real(1,k)) .AND. (holds_real(4,k)==1)) then
                    heatmat(x,y,t) = holds_real(3,k)
                    hold_check = 1
-                elseif ((y == holds_real(2,k)) .AND. (holds_real(1,k) == -999)) then
+                elseif ((y == holds_real(1,k)) .AND. (holds_real(2,k) == -999)) then
                    !it's in a hold column, set to hold value
                    heatmat(x,y,t) = holds_real(3,k)
                    hold_check = 1
-                elseif ((x == holds_real(1,k)) .AND. (holds_real(2,k) == -999) .AND. (holds_real(4,k)==1)) then
+                elseif ((x == holds_real(2,k)) .AND. (holds_real(1,k) == -999) .AND. (holds_real(4,k)==1)) then
                    !it's in a hold row, set to hold value
                    heatmat(x,y,t) = holds_real(k,3)
                    hold_check = 1
                 endif
              enddo ! for each hold
+
+             
              
              !now determine if it is interior, top, LS, RS, or bottom. Flag accordingly.
              if (hold_check==0) then
@@ -288,9 +292,9 @@ contains
           br = 0
           corner = 0
        enddo ! for each row
-       if (mod(t,out_freq)==0) then
+       if (t==2 .OR. (mod(t,out_freq)==0)) then
           print *, 'Time step is', t
-          write(*,'(15f10.2)') heatmat
+          write(*,'(5f10.2)') heatmat(:,:,t)
        endif
     enddo ! for each time step
     
