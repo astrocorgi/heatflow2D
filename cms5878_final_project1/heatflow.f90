@@ -131,7 +131,7 @@ contains
     !write(format,*) '(',size_x,'f10.2)'
     !print *, format
     
-    allocate(heatmat(size_x,size_y,num_timesteps)) !change z to mod(num_timesteps,output) later
+    allocate(heatmat(size_x,size_y,num_timesteps)) 
     allocate(heatmat_stencil(size_x,size_y,num_timesteps))
     hold_check = 0
     interior = 0
@@ -150,21 +150,23 @@ contains
        endif
     enddo
 
+    print *, 'holds read'
     
     
     do t=2,num_timesteps
-       do x = 1,size_x ! for each row
-          do y=1,size_y ! for each column
+       
+       do x = 1,size_x ! for each column
+          do y=1,size_y ! for each row
              ! check if this position is a hold
              do k=1,num_holds !n_rows
-                if ((x==holds_real(2,k)) .AND. (y==holds_real(1,k)) .AND. (holds_real(4,k)==1)) then
+                if ((x==holds_real(1,k)) .AND. (y==holds_real(2,k)) .AND. (holds_real(4,k)==1)) then
                    heatmat(x,y,t) = holds_real(3,k)
                    hold_check = 1
-                elseif ((y == holds_real(1,k)) .AND. (holds_real(2,k) == -999)) then
+                elseif ((y == holds_real(2,k)) .AND. (holds_real(1,k) == -999)) then
                    !it's in a hold column, set to hold value
                    heatmat(x,y,t) = holds_real(3,k)
                    hold_check = 1
-                elseif ((x == holds_real(2,k)) .AND. (holds_real(1,k) == -999) .AND. (holds_real(4,k)==1)) then
+                elseif ((x == holds_real(1,k)) .AND. (holds_real(2,k) == -999) .AND. (holds_real(4,k)==1)) then
                    !it's in a hold row, set to hold value
                    heatmat(x,y,t) = holds_real(k,3)
                    hold_check = 1
@@ -183,7 +185,7 @@ contains
                       tr = 1 !top right
                       corner = 1
                    else 
-                      ls = 1
+                      top = 1
                    endif
                 elseif (y == size_y) then
                    if (x ==1) then
@@ -193,16 +195,18 @@ contains
                       br = 1 ! bottom right
                       corner = 1
                    else
-                      rs = 1
+                      bottom = 1
                    endif
                 elseif (x == 1) then
-                   top = 1
+                   ls = 1
                 elseif (x == size_x) then
-                   bottom = 1
+                   rs = 1
                 else
                    interior = 1
                 endif !determining location flag
              endif !hold check
+
+             
              
              ! now apply the correct heat solution to the element
              ! CORNER ELEMENTS
@@ -276,6 +280,7 @@ contains
                    heatmat(x,y,t) = heatmat_stencil(x,y,t)
                 elseif (top==1) then
                    !same equation with y-1 removed
+                   
                    heatmat_stencil(x,y,t) = heatmat(x,y,t-1)  &
                         +alpha*(heatmat(x-1,y,t-1)+ heatmat(x+1,y,t-1)    & 
                         +heatmat(x-1,y+1,t-1)+ heatmat(x,y+1,t-1)  &
@@ -294,14 +299,18 @@ contains
              bl = 0
              br = 0
              corner = 0
+             
           enddo ! for each column
 
        enddo ! for each row
        if (t==2 .OR. (mod(t,out_freq)==0)) then
           print *, 'Time step is', t
           write(*,'(100f10.2)') heatmat(:,:,t)
+          write(2,'(100f10.2)') heatmat(:,:,t)
        endif
     enddo ! for each time step
+
+    close(2)
   end subroutine heatPropagation
 
   
